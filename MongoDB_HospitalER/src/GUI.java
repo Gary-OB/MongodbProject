@@ -8,6 +8,8 @@ import java.awt.Font;
 import java.awt.Panel;
 import javax.swing.JTextField;
 import org.eclipse.wb.swing.FocusTraversalOnArray;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
 
 public class GUI {
 
@@ -64,6 +66,10 @@ public class GUI {
 		lblNewLabel.setFont(new Font("Tahoma", Font.PLAIN, 14));
 		
 		JButton btnNewButton = new JButton("Add Patient...");
+		btnNewButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+			}
+		});
 		btnNewButton.setBounds(10, 39, 120, 23);
 		panel.add(btnNewButton);
 		
