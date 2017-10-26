@@ -112,6 +112,11 @@ public class EmergencyRoomGUI {
 		panel.add(btnNewButton_2);
 		
 		JButton btnNewButton_3 = new JButton("Remove Patient...");
+		btnNewButton_3.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				removePatient();
+			}
+		});
 		btnNewButton_3.setBounds(10, 177, 131, 35);
 		panel.add(btnNewButton_3);
 		
@@ -194,6 +199,7 @@ public class EmergencyRoomGUI {
 		panel_1.add(tbxSurname);
 		
 		tblData = new JTable();
+		tblData.setFillsViewportHeight(true);
 		tblData.setModel(new DefaultTableModel(
 			new Object[][] {
 			},
@@ -209,6 +215,8 @@ public class EmergencyRoomGUI {
 				addPatient();
 			}
 		});
+		
+		fillTable();
 	}
 	
 	public void addPatient() {
@@ -230,13 +238,14 @@ public class EmergencyRoomGUI {
 	                           .append("doctor", tbxDoctor.getText()));
 			collection.insertOne(doc);
 	        
+			JOptionPane.showMessageDialog(null, "Added new Patient", "Success", JOptionPane.INFORMATION_MESSAGE);	
 	        System.out.println("Inserted value");	
 		} catch (Exception e) {
 			JOptionPane.showMessageDialog(null, "Error Incorrect values entered: \n" + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);			
 		}
-		
-		JOptionPane.showMessageDialog(null, "Added new Patient", "Success", JOptionPane.INFORMATION_MESSAGE);	
+
 		clearGui();
+		fillTable();
 	}
 	
 	public Document searchPatient(String patientId){
@@ -303,7 +312,10 @@ public class EmergencyRoomGUI {
 	        System.out.println("Collection created successfully" + collection.toString());
 			
 	        String searchedDocument = JOptionPane.showInputDialog("Enter patient Id of document to be updated ");
-	        Document toBeUpdated = searchPatient(searchedDocument);
+	        
+	        BasicDBObject query = new BasicDBObject();
+			query.put("patient", searchedDocument);
+					
 	        
 			Document doc = new Document("patient", tbxPatientId.getText())	               
 		               .append("forename", tbxForename.getText())
@@ -312,15 +324,65 @@ public class EmergencyRoomGUI {
 		               .append("urgent", chckbxUrgent.isSelected())
 		               .append("medicalCard", new Document("cardNumber", tbxCardNo.getText())
 	                           .append("doctor", tbxDoctor.getText()));
-			collection.updateOne(toBeUpdated, doc);
-	        
-	        System.out.println("Updated document");	
+			collection.updateOne(query, new Document("$set", doc));
+			
+			JOptionPane.showMessageDialog(null, "Updated Patient", "Success", JOptionPane.INFORMATION_MESSAGE);	
 		} catch (Exception e) {
-			JOptionPane.showMessageDialog(null, "Error Incorrect values entered, unable to update: \n" + e.getMessage(), "Unable to Update", JOptionPane.ERROR_MESSAGE);			
+			JOptionPane.showMessageDialog(null, "Error, unable to update: \n" + e.getMessage(), "Unable to Update", JOptionPane.ERROR_MESSAGE);			
 		}
-		
-		JOptionPane.showMessageDialog(null, "Updated Patient", "Success", JOptionPane.INFORMATION_MESSAGE);	
+			
 		clearGui();
+		fillTable();
+	}
+	
+	public void removePatient() {
+		try {
+			MongoClient mongoClient = new MongoClient("localhost", 27017);
+			MongoDatabase db = mongoClient.getDatabase("employees");        
+			System.out.println("Connected to Database " + db.toString());
+        
+			MongoCollection<Document> collection = db.getCollection("employees");       
+			System.out.println("Collection created successfully" + collection.toString());
+		
+			String searchedDocument = JOptionPane.showInputDialog("Enter patient Id of document to be deleted ");
+		
+			BasicDBObject query = new BasicDBObject();
+			query.put("patient", searchedDocument);
+			collection.deleteOne(query);
+			
+			JOptionPane.showMessageDialog(null, "Deleted Patient", "Success", JOptionPane.INFORMATION_MESSAGE);	
+		} catch (Exception e) {
+			JOptionPane.showMessageDialog(null, "Error, unable to delete: \n" + e.getMessage(), "Unable to Delete", JOptionPane.ERROR_MESSAGE);
+		}		
+		
+		clearGui();
+		fillTable();
+	}
+	
+	public void fillTable() {
+		MongoClient mongoClient = new MongoClient("localhost", 27017);
+		MongoDatabase db = mongoClient.getDatabase("employees");        
+		System.out.println("Connected to Database " + db.toString());
+    
+		MongoCollection<Document> collection = db.getCollection("employees");       
+		System.out.println("Collection created successfully" + collection.toString());
+		
+		DefaultTableModel model = (DefaultTableModel) tblData.getModel();
+		
+		String patient = "";
+		String forename = "";
+		String surname = "";
+		String issue = "";
+		
+		for( Document document : collection.find() ) {
+			patient = (String) document.get("patient");
+			forename = (String) document.get("forename");
+			surname = (String) document.get("surname");
+			issue = (String) document.get("issue");    
+			
+			Object[] data = { patient, surname + ", " + forename, issue };
+			model.addRow(data);
+		}
 	}
 	
 	public void clearGui() {
