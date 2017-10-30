@@ -17,8 +17,11 @@ import com.mongodb.BasicDBObject;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
+import com.mongodb.MapReduceCommand;
+import com.mongodb.MapReduceOutput;
 import com.mongodb.MongoClient;
 import com.mongodb.client.FindIterable;
+import com.mongodb.client.MapReduceIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 
@@ -39,9 +42,9 @@ public class EmergencyRoomGUI {
 	private JTextField tbxDoctor;
 	private JTextField tbxSurname;
 	private JCheckBox chckbxUrgent;
+	private JCheckBox chckbxShowOnlyUrgent;
 	private JTable tblData;
-	//private static MongoFunctions mongoFunctions;
-	
+		
 	/**
 	 * Launch the application.
 	 */
@@ -207,12 +210,22 @@ public class EmergencyRoomGUI {
 				"PatientID", "Name", "Issue"
 			}
 		));
-		tblData.setBounds(442, 11, 144, 270);
+		tblData.setBounds(442, 11, 144, 243);
 		frmEmergencyRoom.getContentPane().add(tblData);
+		
+		chckbxShowOnlyUrgent = new JCheckBox("Show only Urgent?");
+		chckbxShowOnlyUrgent.setBounds(442, 259, 115, 23);
+		frmEmergencyRoom.getContentPane().add(chckbxShowOnlyUrgent);
 		
 		btnNewButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				addPatient();
+			}
+		});
+		
+		chckbxShowOnlyUrgent.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent arg0) {
+				showUrgentsOnly();
 			}
 		});
 		
@@ -222,12 +235,7 @@ public class EmergencyRoomGUI {
 	public void addPatient() {
 		try {
 
-			MongoClient mongoClient = new MongoClient("localhost", 27017);
-	        MongoDatabase db = mongoClient.getDatabase("employees");        
-	        System.out.println("Connected to Database " + db.toString());
-	        
-	        MongoCollection<Document> collection = db.getCollection("employees");       
-	        System.out.println("Collection created successfully" + collection.toString());
+			MongoCollection<Document> collection = connectToDatabase();
 			
 			Document doc = new Document("patient", tbxPatientId.getText())	               
 		               .append("forename", tbxForename.getText())
@@ -250,12 +258,7 @@ public class EmergencyRoomGUI {
 	
 	public Document searchPatient(String patientId){
 		try{
-			MongoClient mongoClient = new MongoClient("localhost", 27017);
-			MongoDatabase db = mongoClient.getDatabase("employees");        
-			System.out.println("Connected to Database " + db.toString());
-        
-			MongoCollection<Document> collection = db.getCollection("employees");       
-			System.out.println("Collection created successfully" + collection.toString());
+			MongoCollection<Document> collection = connectToDatabase();
 		
 			String patient = "";
 			String forename = "";
@@ -304,12 +307,7 @@ public class EmergencyRoomGUI {
 	public void updatePatient(){
 		try {
 
-			MongoClient mongoClient = new MongoClient("localhost", 27017);
-	        MongoDatabase db = mongoClient.getDatabase("employees");        
-	        System.out.println("Connected to Database " + db.toString());
-	        
-	        MongoCollection<Document> collection = db.getCollection("employees");       
-	        System.out.println("Collection created successfully" + collection.toString());
+			MongoCollection<Document> collection = connectToDatabase();
 			
 	        String searchedDocument = JOptionPane.showInputDialog("Enter patient Id of document to be updated ");
 	        
@@ -337,12 +335,7 @@ public class EmergencyRoomGUI {
 	
 	public void removePatient() {
 		try {
-			MongoClient mongoClient = new MongoClient("localhost", 27017);
-			MongoDatabase db = mongoClient.getDatabase("employees");        
-			System.out.println("Connected to Database " + db.toString());
-        
-			MongoCollection<Document> collection = db.getCollection("employees");       
-			System.out.println("Collection created successfully" + collection.toString());
+			MongoCollection<Document> collection = connectToDatabase();
 		
 			String searchedDocument = JOptionPane.showInputDialog("Enter patient Id of document to be deleted ");
 		
@@ -360,14 +353,15 @@ public class EmergencyRoomGUI {
 	}
 	
 	public void fillTable() {
-		MongoClient mongoClient = new MongoClient("localhost", 27017);
-		MongoDatabase db = mongoClient.getDatabase("employees");        
-		System.out.println("Connected to Database " + db.toString());
-    
-		MongoCollection<Document> collection = db.getCollection("employees");       
-		System.out.println("Collection created successfully" + collection.toString());
+		
+		MongoCollection<Document> collection = connectToDatabase();
 		
 		DefaultTableModel model = (DefaultTableModel) tblData.getModel();
+		
+		model.setRowCount(0);
+		
+		Object[] headers = { "PatientID", "Name", "Issue" };
+		model.addRow(headers);
 		
 		String patient = "";
 		String forename = "";
@@ -383,6 +377,60 @@ public class EmergencyRoomGUI {
 			Object[] data = { patient, surname + ", " + forename, issue };
 			model.addRow(data);
 		}
+	}
+	
+	public void showUrgentsOnly(){
+		if(chckbxShowOnlyUrgent.isSelected()) {
+			MongoCollection<Document> collection = connectToDatabase();
+		
+			String map = "function() {"
+					+ "emit(this.surname, {count:1});}";
+		
+			String reduce = "function (key, values) {\n" + 
+					"    total = 0;\n" + 
+					"    for (var i in values) {\n" + 
+					"        total += values[i].count;\n" + 
+					"    }\n" + 
+					"    return {count:total};\n" + 
+					"}";
+		
+			MapReduceIterable<Document> mapReduceResults = collection.mapReduce(map, reduce);
+		
+			DefaultTableModel model = (DefaultTableModel) tblData.getModel();
+		
+			model.setRowCount(0);
+		
+			Object[] headers = { "Name", "Issue"};
+			model.addRow(headers);
+		
+			String forename = "";
+			String issue = "";
+		
+			System.out.println(mapReduceResults.toString());
+			
+			for( Document document : mapReduceResults ) {
+				forename = (String) document.get("forename");
+				issue = (String) document.get("issue");    
+			
+				System.out.println((String) document.get("forename") + ": " + (String) document.get("issue"));
+				Object[] data = { forename, issue };
+				model.addRow(data);
+				
+			}
+			
+		} else {
+			fillTable();
+		}
+	}
+	
+	public MongoCollection<Document> connectToDatabase() {
+		MongoClient mongoClient = new MongoClient("localhost", 27017);
+		MongoDatabase db = mongoClient.getDatabase("patients");        
+		System.out.println("Connected to Database " + db.toString());
+    
+		MongoCollection<Document> collection = db.getCollection("patients");       
+		System.out.println("Collection created successfully" + collection.toString());
+		return collection;
 	}
 	
 	public void clearGui() {
