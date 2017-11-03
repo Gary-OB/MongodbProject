@@ -42,7 +42,6 @@ public class EmergencyRoomGUI {
 	private JTextField tbxDoctor;
 	private JTextField tbxSurname;
 	private JCheckBox chckbxUrgent;
-	private JCheckBox chckbxShowOnlyUrgent;
 	private JTable tblData;
 		
 	/**
@@ -210,22 +209,12 @@ public class EmergencyRoomGUI {
 				"PatientID", "Name", "Issue"
 			}
 		));
-		tblData.setBounds(442, 11, 144, 243);
+		tblData.setBounds(442, 11, 144, 271);
 		frmEmergencyRoom.getContentPane().add(tblData);
-		
-		chckbxShowOnlyUrgent = new JCheckBox("Show only Urgent?");
-		chckbxShowOnlyUrgent.setBounds(442, 259, 115, 23);
-		frmEmergencyRoom.getContentPane().add(chckbxShowOnlyUrgent);
 		
 		btnNewButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				addPatient();
-			}
-		});
-		
-		chckbxShowOnlyUrgent.addActionListener(new ActionListener() {
-			public void actionPerformed(ActionEvent arg0) {
-				showUrgentsOnly();
 			}
 		});
 		
@@ -290,7 +279,7 @@ public class EmergencyRoomGUI {
 			
 			tbxPatientId.setText(patient);
 			tbxForename.setText(forename);
-			tbxSurname.setText(surname);
+			tbxSurname.setText(surname);	
 			tbxIssue.setText(issue);
 			chckbxUrgent.setSelected(isUrgent);
 			tbxCardNo.setText(cardNumber);
@@ -354,6 +343,7 @@ public class EmergencyRoomGUI {
 	
 	public void fillTable() {
 		
+		
 		MongoCollection<Document> collection = connectToDatabase();
 		
 		DefaultTableModel model = (DefaultTableModel) tblData.getModel();
@@ -379,51 +369,8 @@ public class EmergencyRoomGUI {
 		}
 	}
 	
-	public void showUrgentsOnly(){
-		if(chckbxShowOnlyUrgent.isSelected()) {
-			MongoCollection<Document> collection = connectToDatabase();
-		
-			String map = "function() {"
-					+ "emit(this.surname, {count:1});}";
-		
-			String reduce = "function (key, values) {\n" + 
-					"    total = 0;\n" + 
-					"    for (var i in values) {\n" + 
-					"        total += values[i].count;\n" + 
-					"    }\n" + 
-					"    return {count:total};\n" + 
-					"}";
-		
-			MapReduceIterable<Document> mapReduceResults = collection.mapReduce(map, reduce);
-		
-			DefaultTableModel model = (DefaultTableModel) tblData.getModel();
-		
-			model.setRowCount(0);
-		
-			Object[] headers = { "Name", "Issue"};
-			model.addRow(headers);
-		
-			String forename = "";
-			String issue = "";
-		
-			System.out.println(mapReduceResults.toString());
-			
-			for( Document document : mapReduceResults ) {
-				forename = (String) document.get("forename");
-				issue = (String) document.get("issue");    
-			
-				System.out.println((String) document.get("forename") + ": " + (String) document.get("issue"));
-				Object[] data = { forename, issue };
-				model.addRow(data);
-				
-			}
-			
-		} else {
-			fillTable();
-		}
-	}
-	
 	public MongoCollection<Document> connectToDatabase() {
+
 		MongoClient mongoClient = new MongoClient("localhost", 27017);
 		MongoDatabase db = mongoClient.getDatabase("patients");        
 		System.out.println("Connected to Database " + db.toString());
@@ -431,6 +378,7 @@ public class EmergencyRoomGUI {
 		MongoCollection<Document> collection = db.getCollection("patients");       
 		System.out.println("Collection created successfully" + collection.toString());
 		return collection;
+		 
 	}
 	
 	public void clearGui() {
